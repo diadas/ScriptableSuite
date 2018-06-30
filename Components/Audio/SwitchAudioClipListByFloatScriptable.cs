@@ -82,6 +82,7 @@ namespace ScriptableSuite.Components.Audio
         private void PlayNext()
         {
             _currentClipList = _nextClipList.PlayAudioClipList;
+            _currentClipList.Shedule = null;
             _currentClipList.Play();
             _nextClipList = null;
         }
