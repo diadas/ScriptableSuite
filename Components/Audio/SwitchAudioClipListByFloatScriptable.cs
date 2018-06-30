@@ -3,19 +3,27 @@ using System.Collections.Generic;
 using ScriptableSuite.Variables;
 using UnityEngine;
 
-namespace ScriptableSuite.Components.TextMeshPro
+namespace ScriptableSuite.Components.Audio
 {
-    [RequireComponent(typeof(PlayAudioClipList))]
-    public class SwitchAudioClipListByFloatScriptable : MonoBehaviour, IScriptableVariableListener<float>
+    public class SwitchAudioClipListByFloatScriptable : MonoBehaviour, IScriptableVariableListener<float>, IPlayAudioClipListListener
     {
+        public enum TransitionType
+        {
+            Wait,
+            Transition,
+            Cut
+        }
         [Serializable]
-        public struct SwitchEntry
+        public class SwitchEntry
         {
             public PlayAudioClipList PlayAudioClipList;
             public float Threshhold;
+            public TransitionType Transition;
         }
         [SerializeField] private FloatScriptable _floatScriptable;
         [SerializeField] private List<SwitchEntry> _playAudioClipListSwitch;
+        private PlayAudioClipList _currentClipList = null;
+        private SwitchEntry _nextClipList = null;
 
         private void Start()
         {
@@ -24,26 +32,66 @@ namespace ScriptableSuite.Components.TextMeshPro
 
         public void OnChange(IScriptableVariable<float> variable)
         {
-            for (var i = 0; i < _playAudioClipListSwitch.Count; i++)
+            _nextClipList = GetNext();
+            if (_nextClipList.PlayAudioClipList == _currentClipList)
             {
-                if (_playAudioClipListSwitch[i].Threshhold < _floatScriptable.Value)
+                if (_currentClipList != null)
                 {
-                    
+                    _currentClipList.Shedule = null;
                 }
+                return;
+            }
+
+            if (_currentClipList != null)
+            {
+                if (_nextClipList.Transition == TransitionType.Cut)
+                {
+                    _currentClipList.Stop();
+                    PlayNext();
+                }
+                else
+                {
+                    _currentClipList.Shedule = this;
+                }
+            }
+            else
+            {
+                PlayNext();
             }
         }
 
-        private PlayAudioClipList GetNext()
+        private SwitchEntry GetNext()
         {
             for (var i = 0; i < _playAudioClipListSwitch.Count; i++)
             {
-                if (_playAudioClipListSwitch[i].Threshhold < _floatScriptable.Value && i > 0)
+                if (_floatScriptable.Value < _playAudioClipListSwitch[i].Threshhold && i > 0)
                 {
-                    return _playAudioClipListSwitch[i].PlayAudioClipList;
+                    return _playAudioClipListSwitch[i-1];
                 }
             }
 
+            var last = _playAudioClipListSwitch[_playAudioClipListSwitch.Count - 1];
+            if (_floatScriptable.Value >= last.Threshhold)
+            {
+                return last;
+            }
+
             return null;
+        }
+
+        private void PlayNext()
+        {
+            _currentClipList = _nextClipList.PlayAudioClipList;
+            _currentClipList.Play();
+            _nextClipList = null;
+        }
+
+        public void OnChange(PlayAudioClipList variable)
+        {
+            if (_nextClipList != null)
+            {
+                PlayNext();
+            }
         }
     }
 }

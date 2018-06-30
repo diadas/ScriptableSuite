@@ -1,12 +1,15 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using ScriptableSuite.Variables;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
-namespace ScriptableSuite.Components.TextMeshPro
+namespace ScriptableSuite.Components.Audio
 {
     public class PlayAudioClipList : MonoBehaviour
     {
+        public IPlayAudioClipListListener Shedule = null;
         public float Volume
         {
             get { return _volume; }
@@ -22,7 +25,9 @@ namespace ScriptableSuite.Components.TextMeshPro
         [SerializeField] private bool _randomize;
         [SerializeField] private float _volume = 1f;
 
+        private Coroutine _coroutine = null;
         private readonly List<AudioSource> _audioSources = new List<AudioSource>();
+         
 
         private void Start()
         {
@@ -32,8 +37,23 @@ namespace ScriptableSuite.Components.TextMeshPro
             }
         }
 
-        private void Play()
+        public void Stop()
         {
+            StopCoroutine(_coroutine);
+            for (var i = 0; i < _audioSources.Count; i++)
+            {
+                _audioSources[i].Stop();
+            }
+        }
+
+        public void Play()
+        {
+            if (Shedule != null)
+            {
+                Shedule.OnChange(this);
+                Shedule = null;
+                return;
+            }
             if (_randomize)
             {
                 _current = Random.Range(0, _audioClipList.Value.Count);
@@ -47,7 +67,7 @@ namespace ScriptableSuite.Components.TextMeshPro
             audioSource.clip = _audioClipList.Value[_current];
             audioSource.volume = _volume;
             audioSource.Play();
-            StartCoroutine(SheduleNext());
+            _coroutine = StartCoroutine(SheduleNext());
         }
 
         private void UpdateVolume()

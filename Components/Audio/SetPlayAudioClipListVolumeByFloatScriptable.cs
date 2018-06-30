@@ -2,7 +2,7 @@
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace ScriptableSuite.Components.TextMeshPro
+namespace ScriptableSuite.Components.Audio
 {
     [RequireComponent(typeof(PlayAudioClipList))]
     public class SetPlayAudioClipListVolumeByFloatScriptable : MonoBehaviour, IScriptableVariableListener<float>
