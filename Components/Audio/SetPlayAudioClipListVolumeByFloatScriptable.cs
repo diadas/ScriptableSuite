@@ -36,10 +36,10 @@ namespace ScriptableSuite.Components.TextMeshPro
         {
             var input = Mathf.Clamp01(_floatScriptable.Value);
             float volume = 0f;
-            if (input >= _fadeIn.x && input <= _fadeIn.y)
+            if (input > _fadeIn.x && input < _fadeIn.y)
             {
                 volume = (input-_fadeIn.x)/_fadeIn.y;
-            } else if (input > _fadeIn.y && input <= _fadeOut.x)
+            } else if (input >= _fadeIn.y && input <= _fadeOut.x)
             {
                 volume = 1f;
             } else if (input > _fadeOut.x && input < _fadeOut.y)
