@@ -49,6 +49,12 @@ namespace ScriptableSuite.Components.Audio
                     _currentClipList.Stop();
                     PlayNext();
                 }
+                else if (_nextClipList.Transition == TransitionType.Transition)
+                {
+                    _currentClipList.FadeOut();
+                    PlayNext();
+                    _currentClipList.FadeIn();
+                }
                 else
                 {
                     _currentClipList.Shedule = this;

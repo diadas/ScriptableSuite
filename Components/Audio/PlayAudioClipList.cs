@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using ScriptableSuite.Variables;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -10,6 +11,7 @@ namespace ScriptableSuite.Components.Audio
     public class PlayAudioClipList : MonoBehaviour
     {
         public IPlayAudioClipListListener Shedule = null;
+
         public float Volume
         {
             get { return _volume; }
@@ -19,6 +21,7 @@ namespace ScriptableSuite.Components.Audio
                 UpdateVolume();
             }
         }
+
         [SerializeField] private AudioClipListScriptable _audioClipList;
         [SerializeField] private bool _autoStart;
         [SerializeField] private int _current = 0;
@@ -27,7 +30,7 @@ namespace ScriptableSuite.Components.Audio
 
         private Coroutine _coroutine = null;
         private readonly List<AudioSource> _audioSources = new List<AudioSource>();
-         
+
 
         private void Start()
         {
@@ -46,6 +49,34 @@ namespace ScriptableSuite.Components.Audio
             }
         }
 
+        public void FadeOut(float duration = 0.25f)
+        {
+            StopCoroutine(_coroutine);
+            for (var i = 0; i < _audioSources.Count; i++)
+            {
+                var audioSource = _audioSources[i];
+                if (audioSource.isPlaying)
+                {
+                    audioSource.DOKill();
+                    audioSource.DOFade(0f, duration).OnComplete(() => { audioSource.Stop(); });
+                }
+            }
+        }
+
+        public void FadeIn(float duration = 0.25f)
+        {
+            for (var i = 0; i < _audioSources.Count; i++)
+            {
+                var audioSource = _audioSources[i];
+                if (audioSource.isPlaying)
+                {
+                    audioSource.volume = 0f;
+                    audioSource.DOKill();
+                    audioSource.DOFade(1f, duration);
+                }
+            }
+        }
+
         public void Play()
         {
             if (Shedule != null)
@@ -54,6 +85,7 @@ namespace ScriptableSuite.Components.Audio
                 Shedule = null;
                 return;
             }
+
             if (_randomize)
             {
                 _current = Random.Range(0, _audioClipList.Value.Count);
@@ -62,7 +94,7 @@ namespace ScriptableSuite.Components.Audio
             {
                 _current = (_current + 1) % _audioClipList.Value.Count;
             }
-            
+
             var audioSource = GetOrCreateAudioSource();
             audioSource.clip = _audioClipList.Value[_current];
             audioSource.volume = _volume;
@@ -96,7 +128,8 @@ namespace ScriptableSuite.Components.Audio
                     return _audioSources[i];
                 }
             }
-            var audioSourceGameObject = new GameObject("AudioSource"+_audioSources.Count);
+
+            var audioSourceGameObject = new GameObject("AudioSource" + _audioSources.Count);
             audioSourceGameObject.transform.parent = transform;
             var audioSource = audioSourceGameObject.AddComponent<AudioSource>();
             _audioSources.Add(audioSource);
