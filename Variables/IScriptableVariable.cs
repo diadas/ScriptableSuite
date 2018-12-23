@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace ScriptableSuite.Variables
 {
 	public class IScriptableVariable<T> : ScriptableObject
 	{
+		[ShowInInspector, HideInEditorMode] 
 		public T Value
 		{
 			get
@@ -19,7 +21,7 @@ namespace ScriptableSuite.Variables
 		}
 		private T _value;
 		private List<IScriptableVariableListener<T>> _listeners;
-		[SerializeField] private T _defaultValue;
+		[SerializeField, HideInPlayMode] private T _defaultValue;
 
 		public void Subscribe(IScriptableVariableListener<T> listener, bool callAfterwards = false)
 		{

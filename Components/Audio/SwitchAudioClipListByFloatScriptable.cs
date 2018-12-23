@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using ScriptableSuite.Variables;
 using UnityEngine;
@@ -20,10 +21,18 @@ namespace ScriptableSuite.Components.Audio
             public float Threshhold;
             public TransitionType Transition;
         }
+
+        [SerializeField] private float _transitionDuration = 0.25f;
         [SerializeField] private FloatScriptable _floatScriptable;
         [SerializeField] private List<SwitchEntry> _playAudioClipListSwitch;
         private PlayAudioClipList _currentClipList = null;
         private SwitchEntry _nextClipList = null;
+        private SwitchEntry _lastClipList = null;
+
+        public FloatScriptable GetScriptable()
+        {
+            return _floatScriptable;
+        }
 
         private void Start()
         {
@@ -32,8 +41,9 @@ namespace ScriptableSuite.Components.Audio
 
         public void OnChange(IScriptableVariable<float> variable)
         {
-            _nextClipList = GetNext();
-            if (_nextClipList.PlayAudioClipList == _currentClipList)
+            var nextClipList = GetNext();
+            _nextClipList = nextClipList;
+            if (_nextClipList != null && _nextClipList.PlayAudioClipList == _currentClipList)
             {
                 if (_currentClipList != null)
                 {
@@ -44,16 +54,23 @@ namespace ScriptableSuite.Components.Audio
 
             if (_currentClipList != null)
             {
-                if (_nextClipList.Transition == TransitionType.Cut)
+                if (_nextClipList == null)
+                {
+                    StartCoroutine(Stop());
+                } else if (_nextClipList.Transition == TransitionType.Cut)
                 {
                     _currentClipList.Stop();
                     PlayNext();
                 }
                 else if (_nextClipList.Transition == TransitionType.Transition)
                 {
-                    _currentClipList.FadeOut();
+                    Debug.Log(_currentClipList);
+                    Debug.Log(_currentClipList.CurrentTime);
+                    var position = _currentClipList.CurrentTime;
+                    _currentClipList.FadeOut(_transitionDuration);
                     PlayNext();
-                    _currentClipList.FadeIn();
+                    position %= _currentClipList.Length;
+                    _currentClipList.FadeIn(_transitionDuration, position);
                 }
                 else
                 {
@@ -64,13 +81,23 @@ namespace ScriptableSuite.Components.Audio
             {
                 PlayNext();
             }
+
+            _lastClipList = nextClipList;
+        }
+
+        private IEnumerator Stop()
+        {
+            yield return new WaitForSeconds(2f);
+            
+            _currentClipList.FadeOut(_transitionDuration);
+            _currentClipList = null;
         }
 
         private SwitchEntry GetNext()
         {
             for (var i = 0; i < _playAudioClipListSwitch.Count; i++)
             {
-                if (_floatScriptable.Value < _playAudioClipListSwitch[i].Threshhold && i > 0)
+                if (_floatScriptable.Value < _playAudioClipListSwitch[i].Threshhold && i > 0 && _playAudioClipListSwitch[i-1].Threshhold <= _floatScriptable.Value)
                 {
                     return _playAudioClipListSwitch[i-1];
                 }
@@ -87,9 +114,10 @@ namespace ScriptableSuite.Components.Audio
 
         private void PlayNext()
         {
+            bool fromBelow = !(_lastClipList != null && _nextClipList != null && _nextClipList.Threshhold < _lastClipList.Threshhold);
             _currentClipList = _nextClipList.PlayAudioClipList;
             _currentClipList.Shedule = null;
-            _currentClipList.Play();
+            _currentClipList.Play(true, fromBelow);
             _nextClipList = null;
         }
 

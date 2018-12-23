@@ -21,12 +21,24 @@ namespace ScriptableSuite.Components.Audio
                 UpdateVolume();
             }
         }
+        public float CurrentTime
+        {
+            get { return _currentAudioSource!=null ? _currentAudioSource.time : 0f; }
+        }
+        public float Length
+        {
+            get { return _audioClipList.ClipLength; }
+        }
 
         [SerializeField] private AudioClipListScriptable _audioClipList;
+        [SerializeField] private AudioClipListScriptable _upTransition;
+        [SerializeField] private AudioClipListScriptable _downTransition;
         [SerializeField] private bool _autoStart;
         [SerializeField] private int _current = 0;
         [SerializeField] private bool _randomize;
         [SerializeField] private float _volume = 1f;
+        [SerializeField] private float _skip = 0f;
+        [SerializeField] private AudioSource _currentAudioSource;
 
         private Coroutine _coroutine = null;
         private readonly List<AudioSource> _audioSources = new List<AudioSource>();
@@ -63,8 +75,12 @@ namespace ScriptableSuite.Components.Audio
             }
         }
 
-        public void FadeIn(float duration = 0.25f)
+        public void FadeIn(float duration = 0.25f, float position = 0f)
         {
+            if (position > 0f && _currentAudioSource != null)
+            {
+                _currentAudioSource.time = position;
+            }
             for (var i = 0; i < _audioSources.Count; i++)
             {
                 var audioSource = _audioSources[i];
@@ -75,9 +91,14 @@ namespace ScriptableSuite.Components.Audio
                     audioSource.DOFade(1f, duration);
                 }
             }
+            if (_coroutine != null)
+            {
+                StopCoroutine(_coroutine);
+            }
+            _coroutine = StartCoroutine(SheduleNext());
         }
 
-        public void Play()
+        public void Play(bool start = false, bool fromBelow = true)
         {
             if (Shedule != null)
             {
@@ -95,11 +116,40 @@ namespace ScriptableSuite.Components.Audio
                 _current = (_current + 1) % _audioClipList.Value.Count;
             }
 
+            if (start && (fromBelow && _upTransition != null || !fromBelow && _downTransition != null))
+            {
+                PlayTransition(fromBelow);
+                return;
+            }
+
             var audioSource = GetOrCreateAudioSource();
             audioSource.clip = _audioClipList.Value[_current];
             audioSource.volume = _volume;
             audioSource.Play();
+            if (_skip > 0f)
+            {
+                audioSource.time = _skip;
+            }
+            _currentAudioSource = audioSource;
+            if (_coroutine != null)
+            {
+                StopCoroutine(_coroutine);
+            }
             _coroutine = StartCoroutine(SheduleNext());
+        }
+
+        private void PlayTransition(bool fromBelow)
+        {
+            var clipList = (fromBelow ? _upTransition : _downTransition);
+            var audioSource = GetOrCreateAudioSource();
+            audioSource.clip = clipList.Value[0];
+            audioSource.volume = _volume;
+            audioSource.Play();
+            if (_coroutine != null)
+            {
+                StopCoroutine(_coroutine);
+            }
+            _coroutine = StartCoroutine(SheduleNext(clipList));
         }
 
         private void UpdateVolume()
@@ -113,9 +163,13 @@ namespace ScriptableSuite.Components.Audio
             }
         }
 
-        private IEnumerator SheduleNext()
+        private IEnumerator SheduleNext(AudioClipListScriptable clipList = null)
         {
-            yield return new WaitForSeconds(_audioClipList.ClipLength);
+            if (clipList == null)
+            {
+                clipList = _audioClipList;
+            }
+            yield return new WaitForSeconds(clipList.ClipLength-_skip-_currentAudioSource.time);
             Play();
         }
 
